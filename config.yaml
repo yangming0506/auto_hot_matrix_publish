@@ -1,0 +1,114 @@
+# Copy or edit paths; keep secrets in .env (see .env.example).
+
+hot_sources:
+  # 当前环境可用的公开热榜源（实测可访问）
+  - name: toutiao
+    url: "https://www.toutiao.com/hot-event/hot-board/?origin=toutiao_pc"
+
+ai:
+  model: "deepseek-chat"
+  base_url: "https://api.deepseek.com/v1"
+  temperature: 0.7
+  prompt: |
+    你是正能量自媒体爆款作者。
+    根据下方【创作依据】创作一篇适合今日头条发布的原创深度文章。
+    要求：
+    - 观点正向、有信息增量、不跟风、不低俗
+    - 结构清晰，易传播
+    - 绝对合规，不碰敏感
+
+    【创作依据】
+    {hot_content}
+
+    严格只返回JSON，无任何多余内容：
+    {
+      "title": "优质标题",
+      "body": "正文800字左右",
+      "tags": ["标签1","标签2","标签3"],
+      "cover_prompt": "封面提示词，简洁正向"
+    }
+
+safety:
+  forbidden_keywords:
+    - 去世
+    - 死亡
+    - 车祸
+    - 爆炸
+    - 枪击
+    - 自杀
+    - 杀人
+    - 火灾
+    - 地震
+    - 丑闻
+    - 政治
+    - 色情
+    - 暴力
+    - 悲剧
+  min_hot_score: 50000
+
+unique:
+  history_file: "history.json"
+  max_days: 7
+
+image:
+  # 完整 POST 地址，或仅填 …/api/v3（main.py 会自动补全为 …/images/generations）
+  api_url: "https://ark.cn-beijing.volces.com/api/v3/images/generations"
+  # 控制台「推理接入点」ID（常见 ep- 开头）或文档要求的 model 字段；也可用环境变量 VOLC_ARK_IMAGE_MODEL
+  model: ""
+  # Seedream 等常用 1K / 2K；任意 WxH 可能不被接入点支持
+  size: "2K"
+  save_path: "./cover_hot.jpg"
+  # 异步任务接口（api_url 以 …/tasks 结尾）时，main.py 会 GET …/tasks/{id} 轮询
+  # poll_max_seconds: 180
+  # poll_interval_seconds: 2
+  # 可选：合并进请求体的额外字段（按方舟文档）
+  # extra:
+  #   response_format: "url"
+
+notify:
+  log_file: "./publish.log"
+  webhook_url: ""
+
+wait:
+  page: 4
+  upload: 3
+
+# Playwright (CDP): one chrome_user_data_dir per platform — log in once, then reuse (免重复登录).
+platforms:
+  - name: toutiao
+    profile: toutiao
+    # 可被环境变量覆盖：MATRIX_TOUTIAO_CHROME_USER_DATA_DIR 或全局 MATRIX_CHROME_USER_DATA_DIR
+    chrome_user_data_dir: "~/.openclaw/browser-profiles/toutiao"
+    url: "https://mp.toutiao.com/profile_v4/graphic/publish"
+    retry: 2
+    login_check:
+      # 仅检测「已进入可编辑发布页」；避免「登录」按钮误判（页脚/导航常含「登录」文案）
+      must_be_visible: "div.ql-editor | [contenteditable='true']"
+    selectors:
+      # profile_v4 图文：标题区 textarea；正文 ProseMirror；封面在「展示封面」需先点加号
+      title: ".editor-title textarea[placeholder*='文章标题'] | .publish-editor-title textarea[placeholder*='文章标题'] | textarea[placeholder*='文章标题']"
+      body: ".syl-editor .ProseMirror[contenteditable='true'] | .syl-editor .ProseMirror | div.syl-editor [contenteditable='true']"
+      upload_trigger: ".article-cover-add"
+      # 点击加号后出现「上传图片」面板，再选本地上传的 input（与正文区不是同一层）
+      upload_modal_ready: "#upload-drag-input | .upload-image-panel | [data-e2e='image-upload']"
+      # 优先点击「本地上传」按钮触发原生 filechooser，避免误命中页面其他隐藏 input
+      upload_local_btn: ".upload-image-panel button.upload-btn:has-text('本地上传') | [data-e2e='image-upload'] button.upload-btn:has-text('本地上传')"
+      upload_input: "#upload-drag-input | .btn-upload-handle input[type='file'] | .upload-handler input[type='file'] | [data-e2e='image-upload'] input[type='file'] | .pgc-ic-image-tab-scope input[type='file']"
+      # 上传后需要点击抽屉底部「确定」才会应用封面并关闭弹层
+      upload_confirm_btn: "button[data-e2e='imageUploadConfirm-btn'] | .confirm-btns .byte-btn-primary | .byte-drawer-footer button.byte-btn-primary | button:has-text('确定')"
+      # 上传完成后关闭抽屉，避免遮挡底部「预览并发布」
+      upload_modal_close: ".byte-drawer-close | .byte-drawer-header [class*='close'] | button[aria-label='关闭']"
+      # 作品声明：勾选「引用AI」
+      ai_quote_checkbox: "label.byte-checkbox:has-text('引用AI') | .source-info-wrap .checkbox-with-tip:has-text('引用AI')"
+      publish_btn_xpath: "//button[contains(@class,'publish-btn-last') and .//span[contains(.,'确认发布') or contains(.,'预览并发布') or contains(.,'发布')]]"
+      # 点击主发布按钮后，等待预览层（iframe/弹层）完全出现
+      preview_ready: "iframe | .byte-modal | .byte-drawer | [class*='preview'] | [class*='dialog']"
+      preview_wait_ms: 12000
+      # 有些场景点击「预览并发布」后还会有二次确认
+      publish_confirm_xpath: "//button[contains(.,'确认发布') or contains(.,'确认并发布') or contains(.,'发布')]"
+      # 发布成功提示（未命中且 URL 不变化时视为失败）
+      publish_success: ".byte-message-success | text=发布成功 | text=发布完成 | text=提交成功 | text=审核中"
+      # 头条发布成功后会跳转到作品列表页
+      publish_success_url: "https://mp.toutiao.com/profile_v4/index"
+      # 点击发布后可能出现的页面内错误提示（另有 p.err-tip* 瞬时提示由脚本高频轮询捕获）
+      publish_hint: ".hint-warn-tip | .byte-message-error | .byte-notice-content | .byte-alert-content"

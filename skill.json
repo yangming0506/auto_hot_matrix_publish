@@ -1,0 +1,17 @@
+{
+  "id": "auto_hot_matrix_publish",
+  "name": "AI每日热点自动发布（终极安全版）",
+  "description": "多来源热搜 + 安全过滤 + 去重 + DeepSeek写作 + 火山方舟文生图封面 + 自动多平台发布",
+  "version": "4.0",
+  "author": "me",
+  "trigger": {
+    "intents": [
+      "运行今日热点发布",
+      "开始热点自动发布",
+      "每日热点矩阵发布",
+      "按主题写文章发头条",
+      "根据主题发布今日头条"
+    ]
+  },
+  "entry": "main.py"
+}
