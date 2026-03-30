@@ -222,6 +222,41 @@ def extract_json_object(text: str) -> dict[str, Any]:
     return json.loads(m.group(0))
 
 
+# 今日头条图文标题：2–30 字节（UTF-8），见平台发文页限制。
+_TOUTIAO_TITLE_MIN_BYTES = 2
+_TOUTIAO_TITLE_MAX_BYTES = 30
+
+
+def _truncate_utf8_to_max_bytes(s: str, max_bytes: int) -> str:
+    """按 UTF-8 字节截断，不在多字节字符中间切断。"""
+    if max_bytes <= 0:
+        return ""
+    b = s.encode("utf-8")
+    if len(b) <= max_bytes:
+        return s
+    n = max_bytes
+    while n > 0:
+        try:
+            return b[:n].decode("utf-8")
+        except UnicodeDecodeError:
+            n -= 1
+    return ""
+
+
+def clamp_toutiao_title(title: str, fallback: str) -> str:
+    """
+    将标题限制在今日头条要求的 2–30 UTF-8 字节内：过长截断，过短或空则用 fallback（再不行用固定短标题）。
+    """
+    t = _truncate_utf8_to_max_bytes((title or "").strip(), _TOUTIAO_TITLE_MAX_BYTES)
+    if _TOUTIAO_TITLE_MIN_BYTES <= len(t.encode("utf-8")) <= _TOUTIAO_TITLE_MAX_BYTES:
+        return t
+    fb = _truncate_utf8_to_max_bytes((fallback or "").strip(), _TOUTIAO_TITLE_MAX_BYTES)
+    if _TOUTIAO_TITLE_MIN_BYTES <= len(fb.encode("utf-8")) <= _TOUTIAO_TITLE_MAX_BYTES:
+        return fb
+    # 固定兜底（6 字节），满足 2–30
+    return "热点"
+
+
 def deepseek_generate(cfg: dict[str, Any], prompt: str) -> str:
     ai = cfg.get("ai") or {}
     base = os.environ.get("DEEPSEEK_BASE_URL") or ai.get("base_url") or "https://api.deepseek.com/v1"
@@ -787,6 +822,22 @@ def run() -> str:
         raw = deepseek_generate(cfg, prompt)
         article = extract_json_object(raw)
         step_log(cfg, f"deepseek done article_title={str(article.get('title', ''))[:120]}")
+
+    _raw_title = str(article.get("title") or "")
+    _title_fallback = str(hot_title or "").strip()
+    if not _title_fallback:
+        _title_fallback = _truncate_utf8_to_max_bytes(
+            re.sub(r"\s+", " ", str(article.get("body") or "").strip()),
+            _TOUTIAO_TITLE_MAX_BYTES,
+        )
+    article["title"] = clamp_toutiao_title(_raw_title, _title_fallback)
+    _stripped = _raw_title.strip()
+    if article["title"] != _stripped:
+        step_log(
+            cfg,
+            f"toutiao title clamped: raw_bytes={len(_raw_title.encode('utf-8'))} "
+            f"final={article['title']!r} final_bytes={len(article['title'].encode('utf-8'))}",
+        )
 
     cover_path: Path | None = None
     img_cfg = cfg.get("image") or {}
