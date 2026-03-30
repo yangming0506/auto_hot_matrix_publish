@@ -1,16 +1,16 @@
 {
-  "id": "auto_hot_matrix_publish",
-  "name": "AI每日热点自动发布（终极安全版）",
-  "description": "多来源热搜 + 安全过滤 + 去重 + DeepSeek写作 + 火山方舟文生图封面 + 自动多平台发布",
+  "id": "toutiao_hot_auto_publish",
+  "name": "今日头条热点自动发布",
+  "description": "热搜拉取 + 安全过滤 + 去重 + DeepSeek 成文 + 火山方舟封面；主推今日头条（mp.toutiao.com）Playwright 发文，可选配置其他平台。",
   "version": "4.0",
   "author": "me",
   "trigger": {
     "intents": [
-      "运行今日热点发布",
-      "开始热点自动发布",
-      "每日热点矩阵发布",
-      "按主题写文章发头条",
-      "根据主题发布今日头条"
+      "今日头条热点自动发文",
+      "运行今日头条热点发布",
+      "按主题写文章发今日头条",
+      "根据主题发布今日头条",
+      "今日头条自动发布一篇文章"
     ]
   },
   "entry": "main.py"

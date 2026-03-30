@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-auto_hot_matrix_publish: hot fetch + safety filter + dedupe + DeepSeek + cover + optional Playwright (CDP) publish.
+toutiao_hot_auto_publish: 热搜拉取 + 安全过滤 + 去重 + DeepSeek 成文 + 封面 + Playwright（CDP）发文（主推今日头条，可按 config 扩展平台）。
 
 Run from this directory:
   pip install -r requirements.txt
@@ -153,7 +153,7 @@ def notify_webhook(cfg: dict[str, Any], payload: dict[str, Any]) -> None:
 
 
 def http_get_json(url: str, timeout: int = 20) -> dict[str, Any]:
-    req = urllib.request.Request(url, headers={"User-Agent": "auto-hot-matrix/4.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": "toutiao-hot-auto-publish/4.0"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             raw = r.read().decode("utf-8")
@@ -163,7 +163,7 @@ def http_get_json(url: str, timeout: int = 20) -> dict[str, Any]:
         # Fall back to requests (certifi bundle) for better compatibility.
         if "CERTIFICATE_VERIFY_FAILED" not in str(e):
             raise
-        resp = requests.get(url, timeout=timeout, headers={"User-Agent": "auto-hot-matrix/4.0"})
+        resp = requests.get(url, timeout=timeout, headers={"User-Agent": "toutiao-hot-auto-publish/4.0"})
         resp.raise_for_status()
         return resp.json()
 
@@ -980,7 +980,7 @@ if __name__ == "__main__":
 
     _normalize_cli_argv_topic_flag(sys.argv)
 
-    _ap = argparse.ArgumentParser(description="auto_hot_matrix_publish")
+    _ap = argparse.ArgumentParser(description="toutiao_hot_auto_publish")
     _ap.add_argument(
         "-t",
         "--topic",

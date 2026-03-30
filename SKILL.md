@@ -1,6 +1,6 @@
 ---
-name: auto_hot_matrix_publish
-description: 多源热搜抓取、安全过滤、去重、DeepSeek 成文、封面图、可选 Playwright（CDP）多平台发布与日志/Webhook。
+name: toutiao_hot_auto_publish
+description: 今日头条热点自动发文：热搜抓取、安全过滤、去重、DeepSeek 成文、封面图、Playwright（CDP）发文与日志/Webhook；可按配置扩展其他平台。
 metadata:
   openclaw:
     emoji: "🔥"
@@ -8,7 +8,7 @@ metadata:
       bins: ["python3"]
 ---
 
-# AI 每日热点自动发布（矩阵）
+# 今日头条热点自动发布
 
 本技能为 **OpenClaw Agent Skills** 形态：通过 `SKILL.md` 被智能体加载；**可执行流水线**在同目录的 `main.py`（标准 Python，不依赖虚构的 `clawskill` 包）。
 
@@ -43,7 +43,7 @@ metadata:
 在技能目录执行（建议使用虚拟环境，避免 PEP 668 限制）：
 
 ```bash
-cd skills/auto_hot_matrix_publish
+cd skills/toutiao_hot_auto_publish
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -78,14 +78,14 @@ macOS 推荐安装 **Google Chrome**；Playwright 使用 `channel: "chrome"` 时
 如果检测失败，`publish_playwright.mjs` 会：
 
 - 抛出明确错误（提示先手动登录对应 `chrome_user_data_dir`）
-- 在 `skills/auto_hot_matrix_publish/login-failures/` 保存页面截图，便于你调选择器
+- 在技能目录下 `login-failures/` 保存页面截图，便于你调选择器
 
 任意一步失败（填标题、正文、上传、点击发布等）也会在同目录保存 `*-error-*.png`。无界面环境可加 `PLAYWRIGHT_HEADLESS=1` 再运行 `publish_playwright.mjs`。由 OpenClaw 触发时若进程已带 `PLAYWRIGHT_HEADLESS=1`，仅注释 `.env` 无法取消，须在 `.env` 写 **`PLAYWRIGHT_HEADLESS=0`**（`main.py` 会用工目录 `.env` 覆盖进程环境）。
 
 ## 运行
 
 ```bash
-cd skills/auto_hot_matrix_publish
+cd skills/toutiao_hot_auto_publish
 source .venv/bin/activate
 .venv/bin/python main.py
 ```
@@ -128,12 +128,11 @@ AUTO_HOT_FIXTURE="$(pwd)/fixtures/debug_hot.json" ENABLE_BROWSER_PUBLISH=0 .venv
 
 用户或定时任务可用自然语言触发意图，例如：
 
-- 「运行今日热点发布」
-- 「开始热点自动发布」
-- 「每日热点矩阵发布」
-- 「按主题写文章发头条」等（Agent 从用户话中提取主题后设置 `MATRIX_ARTICLE_TOPIC` 或传 `--topic`）
+- 「今日头条热点自动发文」
+- 「运行今日头条热点发布」
+- 「按主题写文章发今日头条」等（Agent 从用户话中提取主题后设置 `MATRIX_ARTICLE_TOPIC` 或传 `--topic`）
 
-智能体应：**读取本 `SKILL.md`**，并 **`exec` 运行** 工作区内的 `skills/auto_hot_matrix_publish/main.py`（或用户复制到 `~/.openclaw/skills/auto_hot_matrix_publish/` 后的同名路径），而不是调用不存在的 `openclaw skill run`。
+智能体应：**读取本 `SKILL.md`**，并 **`exec` 运行** 本技能目录内的 `main.py`（仓库克隆目录名可能为 `auto_hot_matrix_publish` 或已改名为 `toutiao_hot_auto_publish`；复制到 OpenClaw 时建议目录名与技能 id 一致：`~/.openclaw/skills/toutiao_hot_auto_publish/main.py`），而不是调用不存在的 `openclaw skill run`。
 
 重新加载技能后对新会话生效：
 
@@ -148,11 +147,11 @@ openclaw skills list
 
 ```bash
 openclaw cron add \
-  --name "每日热点自动发布" \
+  --name "今日头条热点自动发布" \
   --cron "0 9 * * *" \
   --tz "Asia/Shanghai" \
   --session isolated \
-  --message "执行技能 auto_hot_matrix_publish：在项目目录运行 python3 skills/auto_hot_matrix_publish/main.py（先 source 虚拟环境若需要），完成后汇报结果。"
+  --message "执行技能 toutiao_hot_auto_publish：在技能目录运行 .venv/bin/python main.py（先 source 虚拟环境若需要），完成后汇报结果。"
 ```
 
 请把 `message` 改成与你本机路径、venv 一致的可执行说明。

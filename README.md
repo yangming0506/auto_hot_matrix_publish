@@ -1,6 +1,6 @@
-# auto_hot_matrix_publish
+# toutiao_hot_auto_publish（今日头条热点自动发布）
 
-多源热搜抓取 → 安全过滤与去重 → **DeepSeek** 成文 → **火山方舟** 封面图 → 可选 **Playwright（CDP）** 多平台发文。可作为独立 Python 流水线运行，也可作为 **OpenClaw Agent Skill**（见仓库内 `SKILL.md`）。
+多源热搜抓取 → 安全过滤与去重 → **DeepSeek** 成文 → **火山方舟** 封面图 → **Playwright（CDP）** 发文（**主推今日头条** `mp.toutiao.com`，`config.yaml` 可扩展其他平台）。可作为独立 Python 流水线运行，也可作为 **OpenClaw Agent Skill**（见 `SKILL.md`，技能 id：`toutiao_hot_auto_publish`）。
 
 ## 功能概览
 
