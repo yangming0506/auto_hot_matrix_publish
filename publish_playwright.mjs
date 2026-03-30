@@ -4,7 +4,7 @@
  * No Selenium / no ChromeDriver — same “persistent profile = 免重复登录” model as TipKay-style stacks.
  *
  * Usage: node publish_playwright.mjs <payload.json>
- * Payload: { platforms: [...], article: {title, body}, coverPath: string|null, wait: {page, upload}, headless?: boolean }
+ * Payload: { platforms: [...], article: {title, body, body_html?, body_plain?}, coverPath: string|null, wait: {page, upload}, headless?: boolean }
  */
 
 import { execSync } from "node:child_process";
@@ -187,7 +187,7 @@ async function fillFirstVisible(page, selectorString, value, timeoutMs = 15000) 
   throw lastErr ?? new Error(`No matching field for selectors: ${selectorString.slice(0, 80)}…`);
 }
 
-async function fillBody(page, selectorString, value, timeoutMs = 15000) {
+async function fillBody(page, selectorString, markdownText, bodyHtml, bodyPlain, timeoutMs = 15000) {
   const parts = splitSelectors(selectorString);
   let lastErr;
   for (const sel of parts) {
@@ -195,7 +195,66 @@ async function fillBody(page, selectorString, value, timeoutMs = 15000) {
     try {
       await loc.waitFor({ state: "visible", timeout: timeoutMs });
       await loc.click({ timeout: 5000 });
-      await loc.fill(value, { timeout: 60000 });
+      const pasted = await loc.evaluate((el, payload) => {
+        const richHtml = String(payload.bodyHtml || "").trim();
+        const plain = String(payload.bodyPlain || payload.markdownText || "");
+        const tag = (el.tagName || "").toLowerCase();
+        const isEditable = !!el.isContentEditable || el.getAttribute("contenteditable") === "true";
+
+        const fire = (target) => {
+          target.dispatchEvent(new Event("input", { bubbles: true }));
+          target.dispatchEvent(new Event("change", { bubbles: true }));
+        };
+
+        if (isEditable) {
+          el.focus();
+          const selObj = window.getSelection();
+          if (selObj) {
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            selObj.removeAllRanges();
+            selObj.addRange(range);
+          }
+          document.execCommand?.("delete", false);
+          try {
+            const dt = new DataTransfer();
+            if (richHtml) {
+              dt.setData("text/html", richHtml);
+            }
+            dt.setData("text/plain", plain);
+            let ev;
+            try {
+              ev = new ClipboardEvent("paste", {
+                clipboardData: dt,
+                bubbles: true,
+                cancelable: true,
+              });
+            } catch {
+              ev = new Event("paste", { bubbles: true, cancelable: true });
+              Object.defineProperty(ev, "clipboardData", { value: dt });
+            }
+            el.dispatchEvent(ev);
+          } catch {
+            // ignore and fallback below
+          }
+          // fallback: paste not consumed by editor internals
+          if (!String(el.textContent || "").trim()) {
+            document.execCommand?.("insertText", false, plain);
+          }
+          fire(el);
+          return true;
+        }
+
+        if (tag === "textarea" || tag === "input") {
+          el.value = plain;
+          fire(el);
+          return true;
+        }
+        return false;
+      }, { markdownText, bodyHtml, bodyPlain });
+      if (!pasted) {
+        await loc.fill(markdownText || "", { timeout: 60000 });
+      }
       return;
     } catch (e) {
       lastErr = e;
@@ -676,7 +735,13 @@ async function runPlatform(page, plat, article, coverPath, wait, screenshotDir, 
 
   const bodySel = selectors.body || "[contenteditable='true']";
   publishStepLog(publishLogPath, `${platName}: fill body`);
-  await fillBody(page, bodySel, article.body ?? "");
+  await fillBody(
+    page,
+    bodySel,
+    article.body ?? "",
+    article.body_html ?? "",
+    article.body_plain ?? "",
+  );
   await sleep(400);
 
   if (coverPath && fs.existsSync(coverPath)) {

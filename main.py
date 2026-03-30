@@ -57,6 +57,12 @@ except ImportError:
     print("Missing requests. Run: pip install -r requirements.txt", file=sys.stderr)
     sys.exit(1)
 
+try:
+    import markdown
+except ImportError:
+    print("Missing markdown. Run: pip install -r requirements.txt", file=sys.stderr)
+    sys.exit(1)
+
 
 def _skill_dir() -> Path:
     return Path(__file__).resolve().parent
@@ -530,6 +536,20 @@ def log_browser_publish_context(cfg: dict[str, Any], plat: dict[str, Any], resol
     log_line(cfg, profile_line)
 
 
+def build_rich_body_payload(md_text: str) -> tuple[str, str]:
+    """
+    DeepSeek Markdown -> (HTML, plain text) for browser-side rich paste.
+    """
+    src = str(md_text or "")
+    html = markdown.markdown(
+        src,
+        extensions=["extra", "sane_lists", "nl2br"],
+        output_format="html5",
+    )
+    plain = re.sub(r"\s+", " ", src).strip()
+    return html, plain
+
+
 def publish_platform_playwright(
     plat: dict[str, Any],
     article: dict[str, Any],
@@ -569,9 +589,15 @@ def publish_platform_playwright(
 
     headless = os.environ.get("PLAYWRIGHT_HEADLESS", "").strip().lower() in ("1", "true", "yes")
     publish_log_abs = resolve_publish_log_abs_path(cfg)
+    body_html, body_plain = build_rich_body_payload(str(article.get("body") or ""))
     payload: dict[str, Any] = {
         "platforms": [plat_pub],
-        "article": {"title": article.get("title") or "", "body": article.get("body") or ""},
+        "article": {
+            "title": article.get("title") or "",
+            "body": article.get("body") or "",
+            "body_html": body_html,
+            "body_plain": body_plain,
+        },
         "coverPath": cover_arg,
         "wait": wait_cfg,
         "headless": headless,
